@@ -1,11 +1,12 @@
 /**
  * 方块类
  */
-function Block(oTable) {
+function Block(oTable, oTabelArr) {
+    this.timer = null;
     this.color = null;
     this.oTable = oTable;
     this.routeArr = null;
-    this.oTabelArr = null;
+    this.oTabelArr = oTabelArr;
     this.prevRouteArr = null;
     this.cellLen = parseInt(this.oTable.rows[0].cells.length/2) - 1;
     this.BlockArr = [
@@ -24,9 +25,14 @@ Block.prototype.init = function () {
     //监听事件
     window.onkeydown = function (e) {
         // 上
-        if (e.keyCode == 38) {}
+        if (e.keyCode == 38) {
+            this.rotateBlock();
+        }
         // 下
-        if (e.keyCode == 40) {}
+        if (e.keyCode == 40) {
+            clearInterval(this.timer);
+            this.move(10);
+        }
         // 左
         if (e.keyCode == 37) {
             this.moveToDirect('左');
@@ -36,17 +42,6 @@ Block.prototype.init = function () {
             this.moveToDirect('右');
         }
     }.bind(this)
-    //初始化界面二维数组
-    this.oTabelArr = [];
-    var lenX = this.oTable.rows[0].cells.length;
-    var brr = new Array(lenX);
-    for (var i = 0; i < lenX; i++) {
-        brr[i] = 0;
-    }
-    var lenY = this.oTable.rows.length;
-    for (var i = 0; i < lenY; i++) {
-        this.oTabelArr[i] = brr;
-    }
 }
 
 /**
@@ -60,7 +55,27 @@ Block.prototype.getBlockPoint = function () {
     this.color = colorArr[Math.ceil(Math.random()*7) - 1];
     return this;
 }
-
+/**
+ * 旋转方块
+ * @return {[type]} [description]
+ */
+Block.prototype.rotateBlock = function () {
+    var Cx = 0, Cy = 0;
+    this.routeArr.forEach(function(arr, i){
+        Cx += arr[0];
+        Cy += arr[1];
+    }.bind(this))
+    Cx = Math.round(Cx / 4);
+    Cy = Math.round(Cy / 4);
+    this.remove();
+    for (var i = 0; i < 4; i++) {
+        var arr = new Array(2);
+        arr[0] = Cx + Cy - this.routeArr[i][1];
+        arr[1] = Cy - Cx + this.routeArr[i][0];
+        this.routeArr[i] = arr;
+    }
+    this.draw();
+}
 /**
  * 绘制方块图
  * @return {[type]} [description]
@@ -85,18 +100,21 @@ Block.prototype.remove = function () {
  * 移动
  * @return {[type]} [description]
  */
-Block.prototype.move = function () {
-    var timer = setInterval(function(){
-        if(!this.moveToDirect()){
-            clearInterval(timer);
+Block.prototype.move = function (time=1000) {
+    this.timer = setInterval(function(){
+        this.moveToDirect();
+    }.bind(this), time)
+}
 
-            this.routeArr.forEach(function(arr, i){
-                this.oTabelArr[arr[0]][arr[1]] = 1;
-            }.bind(this))
-            var block = new Block(oTable);
-            block.getBlockPoint().draw().move();
-        }
-    }.bind(this), 1000)
+/**
+ * 移动过程
+ * @param  {[type]} arr [description]
+ * @return {[type]}     [description]
+ */
+Block.prototype.moveNext = function (arr) {
+    this.remove();
+    this.routeArr = arr;
+    this.draw();
 }
 /**
  * 移动方向
@@ -115,14 +133,65 @@ Block.prototype.moveToDirect= function (type="下") {
         }
     })
     if (this.check(prevRouteArr)) {
-        this.remove();
-        this.routeArr = prevRouteArr;
-        this.draw();
+       this.moveNext(prevRouteArr);
     } else {
-        return false;
+        if (type == '下') {
+            this.nextBlock();            
+        }
     }
-    return true;
 }
+/**
+ * 创建下一个方块
+ * @return {[type]} [description]
+ */
+Block.prototype.nextBlock = function () {
+    clearInterval(this.timer);
+    this.routeArr.forEach(function(arr, i){
+        this.oTabelArr[arr[0]][arr[1]] = 1;
+    }.bind(this))
+    this.getCore();
+    var block = new Block(this.oTable, this.oTabelArr);
+    block.getBlockPoint().draw().move();        
+}
+
+/**
+ * 获取分数
+ * @return {[type]} [description]
+ */
+Block.prototype.getCore = function () {
+    var len = this.oTable.rows[0].cells.length;
+    this.routeArr.forEach(function(arr, i){
+        for (var i = 0; i < len; i++) {
+            if(this.oTabelArr[arr[0]][i]==0){
+                break;
+            }
+            if (i == len -1 && this.oTabelArr[arr[0]][i] == 1) {
+                this.oTable.deleteRow(arr[0]);
+                this.getCoreNext(arr[0]);
+            }
+        }
+    }.bind(this))
+}
+
+Block.prototype.getCoreNext = function (tableLen) {
+    // table结构
+    var row = this.oTable.insertRow(0);
+    var len = this.oTable.rows[1].cells.length;
+    for (var i = 0; i < len; i++) {
+       row.insertCell(i); 
+    }
+    // table数组
+    for (var j = tableLen; j > 0; j--) {
+        this.oTabelArr[j] = this.oTabelArr[j - 1];
+    }
+    for (var k = 0; k < len; k++) {
+        this.oTabelArr[0][k] = 0;
+    }
+}
+
+
+
+
 /**
  * 判断是否可以继续移动
  * @return {[type]} [description]
@@ -137,9 +206,6 @@ Block.prototype.check = function (checkArr) {
         if (arr[0] < minY || arr[0] > maxY || arr[1] < minX || arr[1] > maxX || this.oTabelArr[arr[0]][arr[1]] == 1) {
             flag = false;
         }
-        // if (this.oTabelArr[arr[0]][arr[1]] == 1) {
-        //     flag = false;
-        // }
     }.bind(this))
     return flag;
 }

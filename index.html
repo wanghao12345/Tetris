@@ -15,6 +15,7 @@
         .container{
             overflow: hidden;
             padding: 20px 50px;
+            min-width: 700px;
         }
         .left{
             width: 350px;
@@ -342,7 +343,17 @@
 
         var oTable = document.getElementById('table1');
         window.addEventListener('load', function(){
-            var block = new Block(oTable);
+                //初始化界面二维数组
+            var oTabelArr = new Array();
+            var lenX = oTable.rows[0].cells.length;
+            var lenY = oTable.rows.length;
+            for (var i = 0; i < lenY; i++) {
+                oTabelArr[i] = new Array();
+                for (var j = 0; j < lenX; j++) {
+                    oTabelArr[i][j] = 0;
+                }
+            }
+            var block = new Block(oTable, oTabelArr);
             block.getBlockPoint().draw().move();
         }, false);
     </script>
